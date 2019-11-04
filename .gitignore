@@ -127,6 +127,7 @@ CMakeFiles
 CMakeCache.txt
 *.cmake
 !cmake/*.cmake
+!CogniCrypt++/cmake/*.cmake
 *.pc
 Makefile
 !test/*/Makefile
@@ -140,3 +141,6 @@ unittests/PhasarLLVM/ifdside/Problems/IFDSTaintAnalysisTest
 unittests/PhasarLLVM/Pointer/LLVMTypeHierarchyTest
 unittests/Utils/LLVMShorthandsTest
 unittests/Utils/PAMMTest
+CogniCrypt++/CrySL/Grammar/.antlr/
+CogniCrypt++/CrySL/.vscode/
+CogniCrypt++/.vscode/
