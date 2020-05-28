@@ -67,8 +67,10 @@ struct LLVMPointsToGraph::AllocationSiteDFSVisitor
         llvm::isa<llvm::InvokeInst>(G[U].V)) {
       llvm::ImmutableCallSite CS(G[U].V);
       if (CS.getCalledFunction() != nullptr &&
-          HeapAllocationFunctions.count(
-              CS.getCalledFunction()->getName().str())) {
+          (HeapAllocationFunctions.count(
+              CS.getCalledFunction()->getName().str())
+           || CS.getCalledFunction()->hasFnAttribute(llvm::Attribute::RustAllocator)
+          )) {
         // If the call stack is empty, we completely ignore the calling
         // context
         if (matchesStack(G) || CallStack.empty()) {

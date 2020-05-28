@@ -1,18 +1,18 @@
 # Build a stand-alone executable
 if(PHASAR_IN_TREE)
   # Build a small test tool to show how phasar may be used
-  add_phasar_executable(myphasartool
-    myphasartool.cpp
+  add_phasar_executable(pointer_reachability
+    pointer_reachability.cpp
   )
 else()
   # Build a small test tool to show how phasar may be used
-  add_executable(myphasartool
-    myphasartool.cpp
+  add_executable(pointer_reachability
+    pointer_reachability.cpp
   )
 endif()
 
 find_package(Boost COMPONENTS log filesystem program_options graph ${BOOST_THREAD} REQUIRED)
-target_link_libraries(myphasartool
+target_link_libraries(pointer_reachability
   LINK_PUBLIC
   phasar_config
   phasar_controller
@@ -38,15 +38,15 @@ target_link_libraries(myphasartool
 )
 
 if(USE_LLVM_FAT_LIB)
-  llvm_config(myphasartool USE_SHARED ${LLVM_LINK_COMPONENTS})
+  llvm_config(pointer_reachability USE_SHARED ${LLVM_LINK_COMPONENTS})
 else()
-  llvm_config(myphasartool ${LLVM_LINK_COMPONENTS})
+  llvm_config(pointer_reachability ${LLVM_LINK_COMPONENTS})
 endif()
 
 set(LLVM_LINK_COMPONENTS
 )
 
-install(TARGETS myphasartool
+install(TARGETS pointer_reachability
   RUNTIME DESTINATION bin
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib

@@ -103,6 +103,7 @@ find_package(Threads)
 # Boost
 find_package(Boost 1.65.1 COMPONENTS filesystem graph system program_options log ${BOOST_THREAD} REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
+add_definitions(-DBOOST_LOG_DYN_LINK)
 
 # JSON library
 option(JSON_BuildTests OFF)
@@ -128,7 +129,7 @@ include_directories(${SQLITE3_INCLUDE_DIR})
 # LLVM
 if (NOT PHASAR_IN_TREE)
   # Only search for LLVM if we build out of tree
-  find_package(LLVM 10 REQUIRED CONFIG)
+  find_package(LLVM 8 REQUIRED CONFIG)
   include_directories(${LLVM_INCLUDE_DIRS})
   link_directories(${LLVM_LIB_PATH} ${LLVM_LIBRARY_DIRS})
 endif()
@@ -172,7 +173,7 @@ if(PHASAR_IN_TREE OR NEED_LIBCLANG_COMPONENT_LIBS)
     clangASTMatchers
     clangLex
     clangBasic
-    LLVMFrontendOpenMP)
+    )
 endif()
 if (NOT PHASAR_IN_TREE)
   # Only search for clang if we build out of tree

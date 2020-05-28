@@ -105,7 +105,18 @@ public:
 
   /// Set of functions that allocate heap memory, e.g. new, new[], malloc.
   inline const static std::set<std::string> HeapAllocationFunctions = {
-      "_Znwm", "_Znam", "malloc", "calloc", "realloc"};
+      "_Znwm",
+      "_Znam",
+      "malloc",
+      "calloc",
+      "realloc",
+      "__rust_alloc",
+      "__rust_untrusted_alloc"
+      "__rust_alloc_zeroed",
+      "__rust_untrusted_alloc_zeroed"
+      "__rust_alloc",
+      "__rust_untrusted_alloc"
+  };
 
 private:
   struct AllocationSiteDFSVisitor;
