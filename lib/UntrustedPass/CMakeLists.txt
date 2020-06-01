@@ -1,12 +1,12 @@
-file(GLOB_RECURSE PHASARPASS_SRC *.h *.cpp)
+file(GLOB_RECURSE UNTRUSTEDPASS_SRC *.h *.cpp)
 
 set(PHASAR_LINK_LIBS
   phasar_config
   phasar_controlflow
   phasar_db
-  phasar_ifdside
-  phasar_mono
-  phasar_passes
+  #phasar_ifdside
+  #phasar_mono
+  #phasar_passes
   phasar_phasarllvm_utils
   phasar_pointer
   phasar_typehierarchy
@@ -16,18 +16,19 @@ set(PHASAR_LINK_LIBS
 set(LLVM_LINK_COMPONENTS
   Core
   Support
+  TransformUtils
 )
 
 message("\nBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}\n")
 if(BUILD_SHARED_LIBS)
-  add_phasar_library(phasar_pass
+  add_phasar_library(untrusted_pass
     SHARED
-    ${PHASARPASS_SRC}
+    ${UNTRUSTEDPASS_SRC}
   )
 else()
-  add_phasar_library(phasar_pass
+  add_phasar_library(untrusted_pass
     STATIC
-    ${PHASARPASS_SRC}
+    ${UNTRUSTEDPASS_SRC}
   )
 endif()
 
@@ -35,14 +36,21 @@ endif()
 # llvm user side only has to specify one library.
 
 find_package(Boost COMPONENTS log filesystem graph program_options REQUIRED)
-target_link_libraries(phasar_pass
+target_link_libraries(untrusted_pass
   LINK_PUBLIC
   ${PHASAR_LINK_LIBS}
   ${Boost_LIBRARIES}
 )
 
-set_target_properties(phasar_pass
+set_target_properties(untrusted_pass
   PROPERTIES
   LINKER_LANGUAGE CXX
   PREFIX "lib"
 )
+
+#if (LLVM_LINK_LLVM_DYLIB)
+  #llvm_config (untrusted_pass USE_SHARED ${LLVM_LINK_COMPONENTS})
+#else()
+  #llvm_config (SeaDsaAnalysis ${LLVM_LINK_COMPONENTS})
+#endif ()
+

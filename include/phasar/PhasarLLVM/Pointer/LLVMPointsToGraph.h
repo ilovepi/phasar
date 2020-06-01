@@ -111,11 +111,17 @@ public:
       "calloc",
       "realloc",
       "__rust_alloc",
-      "__rust_untrusted_alloc"
       "__rust_alloc_zeroed",
+      "__rust_untrusted_alloc",
       "__rust_untrusted_alloc_zeroed"
-      "__rust_alloc",
-      "__rust_untrusted_alloc"
+      "je_calloc",
+      "je_malloc",
+      "je_mallocx",
+      "je_nallocx"
+      "je_nallocx",
+      "je_rallocx",
+      "je_realloc",
+      "je_xallocx",
   };
 
 private:

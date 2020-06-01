@@ -41,8 +41,18 @@ using namespace psr;
 namespace psr {
 
 /// Set of functions that allocate heap memory, e.g. new, new[], malloc.
-const set<string> HeapAllocationFunctions = {"_Znwm", "_Znam", "malloc",
-                                             "calloc", "realloc"};
+const set<string> HeapAllocationFunctions = {"_Znwm",
+      "_Znam",
+      "malloc",
+      "calloc",
+      "realloc",
+      "__rust_alloc",
+      "__rust_untrusted_alloc"
+      "__rust_alloc_zeroed",
+      "__rust_untrusted_alloc_zeroed"
+      "__rust_alloc",
+      "__rust_untrusted_alloc"
+};
 
 bool isFunctionPointer(const llvm::Value *V) noexcept {
   if (V) {

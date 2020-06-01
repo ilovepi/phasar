@@ -28,11 +28,6 @@ target_link_libraries(myphasartool
   phasar_phasarllvm_utils
   phasar_utils
   ${Boost_LIBRARIES}
-  boost_program_options
-  boost_filesystem
-  boost_graph
-  boost_system
-  boost_log
   ${CMAKE_DL_LIBS}
   ${CMAKE_THREAD_LIBS_INIT}
 )

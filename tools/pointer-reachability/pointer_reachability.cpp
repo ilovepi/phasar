@@ -271,5 +271,16 @@ int main(int Argc, const char **Argv) {
   for (auto I : patchable_instructions) {
     llvm::errs() << *I << "\n";
   }
+
+  // consider marking functions we don't want to be removed as external linkage
+  // llvm::errs() << "Functions w/ external linkage:\n";
+  // for(auto &F : M)
+  //{
+  // if(F.isExternalLinkage(F.getLinkage()))
+  //{
+  // llvm::errs() << F.getName() << "\n";
+  //}
+  //}
+
   return 0;
 }

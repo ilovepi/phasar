@@ -36,11 +36,6 @@ target_link_libraries(phasar-clang
   phasar_typehierarchy
   ${SQLITE3_LIBRARY}
   ${Boost_LIBRARIES}
-  boost_program_options
-  boost_filesystem
-  boost_graph
-  boost_system
-  boost_log
   ${CMAKE_DL_LIBS}
   ${CMAKE_THREAD_LIBS_INIT}
   # ${CLANG_LIBRARY}

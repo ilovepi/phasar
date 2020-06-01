@@ -56,6 +56,7 @@ option(PHASAR_BUILD_DOC "Build documentation" OFF)
 option(PHASAR_DEBUG_LIBDEPS "Debug internal library dependencies (private linkage)" OFF)
 
 option(BUILD_SHARED_LIBS "Build shared libraries (default is ON)" ON)
+set(BUILD_SHARED_LIBS ON)
 
 option(PHASAR_ENABLE_WARNINGS "Enable warnings" ON)
 if (PHASAR_ENABLE_WARNINGS)
@@ -94,6 +95,8 @@ endif()
 
 include_directories(
   ${PHASAR_SRC_DIR}/include
+  ${CMAKE_CURRENT_BINARY_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 ### Adding external libraries
@@ -101,7 +104,7 @@ include_directories(
 find_package(Threads)
 
 # Boost
-find_package(Boost 1.65.1 COMPONENTS filesystem graph system program_options log ${BOOST_THREAD} REQUIRED)
+find_package(Boost COMPONENTS filesystem graph system program_options log ${BOOST_THREAD} REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 add_definitions(-DBOOST_LOG_DYN_LINK)
 

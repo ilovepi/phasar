@@ -70,7 +70,8 @@ struct LLVMPointsToGraph::AllocationSiteDFSVisitor
           (HeapAllocationFunctions.count(
               CS.getCalledFunction()->getName().str())
            || CS.getCalledFunction()->hasFnAttribute(llvm::Attribute::RustAllocator)
-          )) {
+           || CS.getCalledFunction()->getName().contains("__exchange_malloc"))
+          ) {
         // If the call stack is empty, we completely ignore the calling
         // context
         if (matchesStack(G) || CallStack.empty()) {
