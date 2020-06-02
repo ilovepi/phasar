@@ -48,6 +48,7 @@
 #include "phasar/UntrustedPass/UntrustedPass.h"
 #include "phasar/Utils/EnumFlags.h"
 
+#define DEBUG_TYPE "untrusted-mpk"
 namespace psr {
 
 char UntrustedPass::ID = 12;
@@ -114,10 +115,10 @@ llvm::Function *FindRustMain(llvm::Function *Main) {
         if (!CS || CS.isIndirectCall())
           continue;
         if (CS.getCalledFunction()->getName().contains("lang_start")) {
-          llvm::errs() << "searching for rust main -- found:\n";
+          LLVM_DEBUG(llvm::errs() << "Searching for rust main -- found:\n");
           auto MainVal = CS.getArgOperand(0);
           if (auto RustMain = llvm::dyn_cast<llvm::Function>(MainVal)) {
-            llvm::errs() << RustMain->getName() << "\n";
+            LLVM_DEBUG(llvm::errs() << RustMain->getName() << "\n");
             return RustMain;
           }
         }
@@ -169,22 +170,20 @@ struct ContextExplorer {
 
               if (!A->getType()->isPointerTy())
                 continue;
-              llvm::errs() << "CallStack:\n";
+              LLVM_DEBUG(llvm::errs() << "CallStack:\n");
               for (auto call : CallStack) {
-                llvm::errs() << *call << "\n";
+                LLVM_DEBUG(llvm::errs() << *call << "\n");
               }
-              llvm::errs() << "Call: " << I << "\n";
-              llvm::errs() << "Argument = " << *A << "\n";
+              LLVM_DEBUG(llvm::errs() << "Call: " << I << "\n");
+              LLVM_DEBUG(llvm::errs() << "Argument = " << *A << "\n");
               // have to throw away the const to use this API  -- great design
               // :/
               LLVMPointsToGraph *p = const_cast<LLVMPointsToGraph *>(&PTG);
               auto ReachableAllocs =
                   p->getReachableAllocationSites(target, CallStack);
-              llvm::errs() <<"Reaching Allocs:\n";
-              for(auto Alloc : ReachableAllocs)
-              {
-                llvm::errs() << *Alloc <<"\n";
-
+              LLVM_DEBUG(llvm::errs() << "Reaching Allocs:\n");
+              for (auto Alloc : ReachableAllocs) {
+                LLVM_DEBUG(llvm::errs() << *Alloc << "\n");
               }
               ReachingValues.insert(ReachableAllocs.begin(),
                                     ReachableAllocs.end());
@@ -230,15 +229,15 @@ bool UntrustedPass::runOnFunction(Function &F) {
       } // for I in BB
 
     for (auto I : CIS) {
-      llvm::errs() << *I << "\n";
+      // LLVM_DEBUG(llvm::errs() << *I << "\n");
       CallSite CS(I);
       if (!CS)
         continue;
       auto CalleeName = CS.getCalledFunction()->getName().str();
       InlineFunctionInfo IFI(nullptr);
       if (InlineFunction(CS, IFI)) {
-        llvm::errs() << "Inlined call to " << CalleeName << " in "
-                     << F.getName() << "\n";
+        //LLVM_DEBUG(llvm::errs() << "Inlined call to " << CalleeName << " in "
+         //<< F.getName() << "\n");
         modified |= true;
         fixpoint = false;
       }
@@ -276,10 +275,11 @@ bool UntrustedPass::runOnModule(llvm::Module &M) {
 
   bool modified = false;
 
-  // for (auto &F : M) {
-  // modified |= runOnFunction(F);
-  // llvm::errs() << "RunOnFunction finished\n";
-  //}
+  for (auto &F : M) {
+    modified |= runOnFunction(F);
+  }
+
+  //LLVM_DEBUG(llvm::errs() << "RunOnFunction finished\n");
 
   llvm::Function *Main = M.getFunction("main");
 
@@ -296,9 +296,15 @@ bool UntrustedPass::runOnModule(llvm::Module &M) {
   LLVMPointsToInfo PT(DB);
   LLVMBasedCFG CFG;
 
+  int allocator_call_count = 0;
   for (auto entry : EntryPointsSet) {
     llvm::outs() << "Exploring Entry Point " << entry << "\n";
     LLVMBasedICFG Icfg(DB, CGTy, {entry}, &H, &PT);
+
+    for (auto AllocName : LLVMPointsToGraph::HeapAllocationFunctions) {
+      auto *F = Icfg.getFunction(AllocName);
+      allocator_call_count += Icfg.getCallerCount(F);
+    }
 
     for (auto &F : M) {
       if (F.hasFnAttribute(llvm::Attribute::Untrusted)) {
@@ -320,7 +326,7 @@ bool UntrustedPass::runOnModule(llvm::Module &M) {
                  << " Calls to RustAllocators\n";
 
     std::set<const llvm::Value *> UntrustedArgs;
-#if 1
+#if 0
     ContextExplorer explorer(Icfg, RustMain);
     auto AllocSites = explorer.ContextSensitiveSearchStart();
 
@@ -329,10 +335,10 @@ bool UntrustedPass::runOnModule(llvm::Module &M) {
 
     for (auto alloc : AllocSites) {
       if (auto Inst = llvm::dyn_cast<llvm::Instruction>(alloc)) {
-        llvm::errs() << "\t" << *Inst << "\n";
+        // LLVM_DEBUG(llvm::errs() << "\t" << *Inst << "\n");
         llvm::ImmutableCallSite CS(Inst);
         if (CS) {
-          // llvm::errs() << "\t" << *CS.getInstruction() << "\n";
+          // LLVM_DEBUG(llvm::errs() << "\t" << *CS.getInstruction() << "\n");
           if (CS.isIndirectCall()) {
             auto call_targets = Icfg.getCalleesOfCallAt(Inst);
             for (auto target : call_targets) {
@@ -341,7 +347,8 @@ bool UntrustedPass::runOnModule(llvm::Module &M) {
                    // LLVMPointsToGraph::HeapAllocationFunctions.count(
                    // AllocReplacementMap.count(target->getName().str()))) {
                    TrustedAllocs.count(target->getName().str()))) {
-                // llvm::errs() << "\t" << *CS.getInstruction() << "\n";
+                // LLVM_DEBUG(llvm::errs() << "\t" << *CS.getInstruction() <<
+                // "\n");
                 patchable_instructions.insert(Inst);
               }
             }
@@ -353,7 +360,8 @@ bool UntrustedPass::runOnModule(llvm::Module &M) {
                  // LLVMPointsToGraph::HeapAllocationFunctions.count(
                  // AllocReplacementMap.count(
                  TrustedAllocs.count(target->getName().str()))) {
-              // llvm::errs() << "\t" << *CS.getInstruction() << "\n";
+              // LLVM_DEBUG(llvm::errs() << "\t" << *CS.getInstruction() <<
+              // "\n");
               patchable_instructions.insert(Inst);
             }
           }
@@ -362,10 +370,10 @@ bool UntrustedPass::runOnModule(llvm::Module &M) {
     }     // for each alloc site we found
           //}
 
-    // llvm::errs() << "\n\nFound " << patchable_instructions.size()
-    //<< " Patchable Instructions\n";
+    LLVM_DEBUG(llvm::errs() << "\n\nFound " << patchable_instructions.size()
+                            << " Patchable Instructions\n");
     // for (auto I : patchable_instructions) {
-    // llvm::errs() << *I << "\n";
+    // LLVM_DEBUG(llvm::errs() << *I << "\n");
     //}
 #else
     for (auto *I : UntrustedCalls) {
@@ -384,11 +392,11 @@ bool UntrustedPass::runOnModule(llvm::Module &M) {
         const LLVMPointsToGraph &ptg = Icfg.getWholeModulePTG();
         auto pts = ptg.getPointsToSet(Arg);
 
-        llvm::errs() << "Points to set for:\n";
-        llvm::errs() << *Arg << "\n";
+        LLVM_DEBUG(llvm::errs() << "Points to set for:\n");
+        LLVM_DEBUG(llvm::errs() << *Arg << "\n");
         UntrustedArgs.insert(Arg);
         for (auto v : pts) {
-          // llvm::errs() << "\t" << *v << "\n";
+          // LLVM_DEBUG(llvm::errs() << "\t" << *v << "\n");
           if (auto ValInst = llvm::dyn_cast<llvm::Instruction>(v)) {
             llvm::ImmutableCallSite CS(v);
             if (CS) {
@@ -398,8 +406,8 @@ bool UntrustedPass::runOnModule(llvm::Module &M) {
                   if (target &&
                       (target->hasFnAttribute(llvm::Attribute::RustAllocator) ||
                        AllocReplacementMap.count(target->getName().str()))) {
-                    // llvm::errs() << "\t" << *CS.getInstruction() << "\n";
-                    patchable_instructions.insert(ValInst);
+                    // LLVM_DEBUG(llvm::errs() << "\t" << *CS.getInstruction()
+                    // << "\n"); patchable_instructions.insert(ValInst);
                   }
                 }
 
@@ -408,8 +416,8 @@ bool UntrustedPass::runOnModule(llvm::Module &M) {
                 if (target &&
                     (target->hasFnAttribute(llvm::Attribute::RustAllocator) ||
                      AllocReplacementMap.count(target->getName().str()))) {
-                  // llvm::errs() << "\t" << *CS.getInstruction() << "\n";
-                  patchable_instructions.insert(ValInst);
+                  // LLVM_DEBUG(llvm::errs() << "\t" << *CS.getInstruction() <<
+                  // "\n"); patchable_instructions.insert(ValInst);
                 }
               }
               // llvm::errs() << "\t" << *v << "\n";
@@ -421,18 +429,21 @@ bool UntrustedPass::runOnModule(llvm::Module &M) {
       }
     }
 
-    // for (auto I : AllocatorCalls) {
-    // for (auto Arg : UntrustedArgs) {
-    // if (PT.alias(Arg, I) != AliasResult::NoAlias) {
-    // patchable_instructions.insert(I);
-    //}
-    //}
-    //}
+    for (auto I : AllocatorCalls) {
+      for (auto Arg : UntrustedArgs) {
+        if (PT.alias(Arg, I) != AliasResult::NoAlias) {
+          patchable_instructions.insert(I);
+        }
+      }
+    }
 #endif
 
   } // end entrypoints set
 
   int patchable_count = patchable_instructions.size();
+
+  llvm::errs() << "\n\nFound " << AllocatorCalls.size()
+               << " calls to Allocation Functions\n";
 
   llvm::errs() << "\n\nFound " << patchable_count
                << " Patchable Instructions\n";
@@ -447,7 +458,7 @@ bool UntrustedPass::runOnModule(llvm::Module &M) {
     errs() << "Filtered Patchable Instruction count:"
            << patchable_instructions.size() << "\n";
     for (auto I : patchable_instructions) {
-      errs() << *I << "\n";
+      LLVM_DEBUG(errs() << *I << "\n");
       auto mod = patchInstruction(const_cast<Instruction *>(I));
       if (mod)
         patch_count++;
@@ -455,13 +466,16 @@ bool UntrustedPass::runOnModule(llvm::Module &M) {
     }
   }
 
+  llvm::errs() << "Found " << allocator_call_count
+               << " allocator calls in module\n";
   llvm::errs() << "Patched " << patch_count << " Instructions, out of "
                << patchable_count << " candidates\n";
   for (auto api : RemoveNoInline) {
     auto F = M.getFunction(api);
     if (!F) {
-      llvm::errs() << "Could not find allocator to remove attribute from: "
-                   << api << "\n";
+      LLVM_DEBUG(llvm::errs()
+                 << "Could not find allocator to remove attribute from: " << api
+                 << "\n");
       continue;
     }
     F->removeFnAttr(llvm::Attribute::NoInline);
@@ -532,28 +546,32 @@ void FilterPatchableInstructions(
 bool patchRustAlloc(Instruction *I) {
   CallSite Alloc(I);
   if (!Alloc) {
-    errs() << "ERROR: expected trusted allocator call\n"
-           << "Patch Failed at " << *I << "\n";
+    LLVM_DEBUG(errs() << "ERROR: expected trusted allocator call\n"
+                      << "Patch Failed at " << *I << "\n");
     return false;
   }
 
   auto F = Alloc.getCalledFunction();
   if (!F) {
-    errs() << "ERROR while creating patch: Could not find called function\n";
+    LLVM_DEBUG(
+        errs()
+        << "ERROR while creating patch: Could not find called function\n");
     return false;
   }
 
   std::string ReplacementName =
       AllocReplacementMap.find(F->getName().str())->second;
 
-  llvm::errs() << "Patching " << Alloc.getCalledFunction()->getName()
-               << " Call Site in " << I->getFunction()->getName() << "\n";
+  LLVM_DEBUG(llvm::errs() << "Patching " << Alloc.getCalledFunction()->getName()
+                          << " Call Site in " << I->getFunction()->getName()
+                          << "\n");
   Function *UntrustedAlloc =
       I->getFunction()->getParent()->getFunction(ReplacementName);
 
   if (!UntrustedAlloc) {
-    errs() << "ERROR while creating patch: Could not find replacement: "
-           << ReplacementName << "\n";
+    LLVM_DEBUG(
+        errs() << "ERROR while creating patch: Could not find replacement: "
+               << ReplacementName << "\n");
     return false;
   }
 
@@ -564,10 +582,11 @@ bool patchRustAlloc(Instruction *I) {
 }
 
 bool patchAllocCall(CallSite alloc) {
-  llvm::errs() << "Patching Allocation Call Site\n";
+  LLVM_DEBUG(llvm::errs() << "Patching Allocation Call Site\n");
   auto LastArg = alloc.getNumArgOperands();
   if (LastArg == 0) {
-    errs() << "Error Bad Argument index when patching Allocation call\n";
+    LLVM_DEBUG(
+        errs() << "Error Bad Argument index when patching Allocation call\n");
     return false;
   }
   LastArg--;
@@ -575,38 +594,34 @@ bool patchAllocCall(CallSite alloc) {
   auto isBool = arg->getType()->isIntegerTy(1);
 
   if (!isBool) {
-    errs() << "Patch Failed in:" << alloc.getCaller()->getName() << " at\n"
-           << *alloc.getInstruction() << "\n";
-    errs() << "\tInstruction not a patchable Allocation call\n";
+    LLVM_DEBUG(dbgs() << "Patch Failed in:" << alloc.getCaller()->getName()
+                      << " at\n"
+                      << *alloc.getInstruction() << "\n");
+    LLVM_DEBUG(dbgs() << "\tInstruction not a patchable Allocation call\n");
     return false;
   }
 
-  llvm::errs() << "Boolean Parameter Found ... \n";
+  LLVM_DEBUG(llvm::errs() << "Boolean Parameter Found ... \n");
   // ConstantInt::get(arg->getType(), 0, SignExtend != 0);
   auto FalseVal = ConstantInt::getFalse(arg->getType());
   alloc.setArgument(LastArg, FalseVal);
-  errs() << "Patched call of " << alloc.getCalledFunction()->getName() << " in "
-         << alloc.getCaller()->getName() << "\n";
+  LLVM_DEBUG(dbgs() << "Patched call of "
+                    << alloc.getCalledFunction()->getName() << " in "
+                    << alloc.getCaller()->getName() << "\n");
   return true;
 }
 
 bool patchInstruction(Instruction *I) {
   CallSite Alloc(I);
   if (!Alloc) {
-    errs() << "ERROR: Patch expected a call site\n"
-           << "Patch Failed at " << *I << "\n";
+    LLVM_DEBUG(dbgs() << "ERROR: Patch expected a call site\n"
+                      << "Patch Failed at " << *I << "\n");
     return false;
   }
-
-  // Function *RustAlloc =
-  // I->getFunction()->getParent()->getFunction("__rust_alloc");
-
-  // Function *UntrustedAlloc =
-  // I->getFunction()->getParent()->getFunction("__rust_untrusted_alloc");
-
   if (Alloc.isIndirectCall()) {
-    errs() << "Error: Indirect call to an allocator was found! Unable to "
-              "patch!\n";
+    LLVM_DEBUG(
+        dbgs() << "Error: Indirect call to an allocator was found! Unable to "
+                  "patch!\n");
     return false;
   }
 
@@ -624,3 +639,5 @@ static llvm::RegisterPass<UntrustedPass>
                   false /* Only looks at CFG */, false /* Analysis Pass */);
 
 } // namespace psr
+
+#undef DEBUG_TYPE
